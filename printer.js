@@ -741,13 +741,17 @@ async function printDSeries(transport, data, widthBytes, heightLines, onProgress
 
   // D30 print head is 12 bytes (96px) wide. Clamp rotated width to prevent
   // overflow on wider tape sizes (14mm/15mm) which causes double label eject.
+  // After 90° CW rotation the label top maps to the END of each row, so keep
+  // the last 12 bytes (not the first) to preserve the correct content.
   const D30_MAX_WIDTH_BYTES = 12;
   if (rotated.widthBytes > D30_MAX_WIDTH_BYTES) {
-    console.log(`Clamping width from ${rotated.widthBytes} to ${D30_MAX_WIDTH_BYTES} bytes`);
+    const excess = rotated.widthBytes - D30_MAX_WIDTH_BYTES;
+    console.log(`Clamping width from ${rotated.widthBytes} to ${D30_MAX_WIDTH_BYTES} bytes (dropping first ${excess} bytes per row)`);
     const clamped = new Uint8Array(D30_MAX_WIDTH_BYTES * rotated.heightLines);
     for (let row = 0; row < rotated.heightLines; row++) {
+      const rowStart = row * rotated.widthBytes + excess;
       clamped.set(
-        rotated.data.slice(row * rotated.widthBytes, row * rotated.widthBytes + D30_MAX_WIDTH_BYTES),
+        rotated.data.slice(rowStart, rowStart + D30_MAX_WIDTH_BYTES),
         row * D30_MAX_WIDTH_BYTES
       );
     }
