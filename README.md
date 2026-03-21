@@ -4,8 +4,6 @@ A browser-based label designer for the **Phomemo D30** thermal label printer, bu
 
 **Live app:** https://spicylimes.github.io/Thermal-Printer-UI/
 
-![D30 Label Designer](screenshot.png)
-
 ## Requirements
 
 - A Chromium-based browser (Chrome, Chromium, Edge) — Web Bluetooth is not supported in Firefox or Safari

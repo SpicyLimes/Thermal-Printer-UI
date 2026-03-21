@@ -43,19 +43,16 @@ const M02_CMD = {
 
 // D-series (D30, D110) specific commands
 const D_CMD = {
-  // Phomemo proprietary prefix required before ESC/POS raster header.
-  // Without 1f 11 24 00 the printer resets and ejects a blank label.
-  // Reference: polskafan/phomemo_d30, daehyeok/d30-printer
+  // D30 header includes init inline: ESC @ GS v 0 \0 widthLow widthHigh rowsLow rowsHigh
   HEADER: (widthBytes, rows) => new Uint8Array([
-    0x1f, 0x11, 0x24, 0x00, // Phomemo: prepare print / set paper size
-    0x1b, 0x40,             // ESC @ - Initialize
-    0x1d, 0x76, 0x30, 0x00, // GS v 0 mode=0 - Raster bit image
+    0x1b, 0x40,           // ESC @ - Initialize
+    0x1d, 0x76, 0x30, 0x00, // GS v 0 \0 - Raster bit image
     widthBytes % 256,
     Math.floor(widthBytes / 256),
     rows % 256,
     Math.floor(rows / 256),
   ]),
-  // No end command — ESC d 0 triggers a second label eject on D30
+  END: new Uint8Array([0x1b, 0x64, 0x00]),
 };
 
 // M110-series specific commands (based on phomemo-tools project)
@@ -767,7 +764,11 @@ async function printDSeries(transport, data, widthBytes, heightLines, onProgress
     }
   }
 
-  // No end command needed — ESC d 0 causes a second blank label eject on D30
+  // D-series end command
+  await transport.delay(100);
+  console.log('Sending D-series end command...');
+  await transport.send(D_CMD.END);
+
   console.log('Print complete!');
 }
 
