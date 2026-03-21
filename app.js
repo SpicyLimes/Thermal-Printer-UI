@@ -134,7 +134,7 @@ let LABEL_SIZES = { ...D_SERIES_LABEL_SIZES, ...D_SERIES_ROUND_LABELS };
 
 // App state
 const state = {
-  labelSize: { width: 30, height: 14 },
+  labelSize: { width: 40, height: 15 },
   tapeWidth: 12,  // Tape width in mm for tape printers (P12/A30), default 12mm
   elements: [],
   selectedIds: [],  // Array of selected element IDs (supports multi-select)
@@ -626,7 +626,6 @@ function updateConnectionStatus(connected) {
   const printerInfoBtn = $('#printer-info-btn');
   const ditherPreviewBtn = $('#dither-preview-btn');
   const connectBtn = $('#connect-btn');
-  const connType = $('#conn-type');
   const mobileDot = $('#mobile-status-dot');
   const mobileConnectBtn = $('#mobile-connect-btn');
   const mobileDisconnectBtn = $('#mobile-disconnect-btn');
@@ -644,14 +643,6 @@ function updateConnectionStatus(connected) {
   if (connectBtn) {
     connectBtn.classList.toggle('hidden', connected);
   }
-  if (connType) {
-    connType.classList.toggle('hidden', connected);
-    // On small screens conn-type is already hidden, so only toggle for larger screens
-    if (!connected) {
-      connType.classList.add('hidden', 'sm:block');
-    }
-  }
-
   // Hide/show mobile connect button
   if (mobileConnectBtn) {
     mobileConnectBtn.classList.toggle('hidden', connected);
@@ -763,7 +754,7 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
   // D-series only
   const rectSizes = D_SERIES_LABEL_SIZES;
   const roundSizes = D_SERIES_ROUND_LABELS;
-  const defaultKey = '30x14';
+  const defaultKey = '40x15';
 
   LABEL_SIZES = { ...rectSizes, ...roundSizes };
 
@@ -6998,11 +6989,12 @@ function init() {
     }
   });
 
-  // Center selection on label
+  // Center selection on label (labelSize is in mm; canvas coords are px at 8px/mm)
+  const PX_PER_MM = 8;
   $('#center-h-btn').addEventListener('click', () => {
     if (state.selectedIds.length > 0) {
       saveHistory();
-      const labelW = state.labelSize.width;
+      const labelW = state.labelSize.width * PX_PER_MM;
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
@@ -7016,7 +7008,7 @@ function init() {
   $('#center-v-btn').addEventListener('click', () => {
     if (state.selectedIds.length > 0) {
       saveHistory();
-      const labelH = state.labelSize.height;
+      const labelH = state.labelSize.height * PX_PER_MM;
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
