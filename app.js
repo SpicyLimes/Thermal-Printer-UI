@@ -7007,7 +7007,7 @@ function init() {
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
-          state.elements = updateElement(state.elements, id, { x: (labelW - el.width) / 2 });
+          state.elements = updateElement(state.elements, id, { x: Math.max(0, (labelW - el.width) / 2) });
         }
       });
       render();
@@ -7021,7 +7021,7 @@ function init() {
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
-          state.elements = updateElement(state.elements, id, { y: (labelH - el.height) / 2 });
+          state.elements = updateElement(state.elements, id, { y: Math.max(0, (labelH - el.height) / 2) });
         }
       });
       render();
