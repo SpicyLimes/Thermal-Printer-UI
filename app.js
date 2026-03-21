@@ -160,7 +160,7 @@ const state = {
     density: 6,       // 1-8 (darkness)
     copies: 1,        // Number of copies
     feed: 32,         // Feed after print in dots (8 dots = 1mm)
-    printerModel: 'auto',  // 'auto', 'narrow-48', 'mini-54', 'wide-72', 'mid-76', 'wide-81', 'd-series'
+    printerModel: 'd-series',
   },
   // Template state
   templateFields: [],     // Detected field names from elements
@@ -4528,28 +4528,13 @@ async function handleConnect(event) {
     const savedModel = getSavedDeviceModel(deviceName);
     const printerModel = state.printSettings.printerModel;
 
-    // Determine effective model: auto-detect for recognized devices, else saved mapping > print settings
-    let effectiveModel = printerModel;
-    if (recognized) {
-      // Device is recognized - use auto-detection (ignore saved model which may be outdated)
-      effectiveModel = 'auto';
-      state.printSettings.printerModel = 'auto';
-      $('#printer-model').value = 'auto';  // Update dropdown to match
-    } else if (savedModel && printerModel === 'auto') {
-      // Unrecognized device with saved mapping - use saved model
-      state.printSettings.printerModel = savedModel;
-      effectiveModel = savedModel;
-    }
+    // Always use d-series — this app is D30 only
+    const effectiveModel = 'd-series';
+    state.printSettings.printerModel = 'd-series';
+    $('#printer-model').value = 'd-series';
 
-    // Show detected/configured model in status
     const modelDesc = getPrinterDescription(deviceName, effectiveModel);
-    if (recognized || savedModel || printerModel !== 'auto') {
-      setStatus(`Connected: ${deviceName} (${modelDesc})`);
-    } else {
-      // Device not recognized and no saved preference - prompt user
-      setStatus(`Connected: ${deviceName} - Please select printer model`);
-      showPrinterModelPrompt(deviceName);
-    }
+    setStatus(`Connected: ${deviceName} (${modelDesc})`);
 
     // Initialize tape width for tape printers
     if (isTapePrinter(deviceName, effectiveModel)) {
@@ -6767,11 +6752,12 @@ function init() {
         settings.printerModel = 'wide-72';
       }
       state.printSettings = { ...state.printSettings, ...settings };
+      state.printSettings.printerModel = 'd-series'; // always d-series
       densitySlider.value = state.printSettings.density;
       densityValue.textContent = state.printSettings.density;
       copiesInput.value = state.printSettings.copies;
       feedSelect.value = state.printSettings.feed;
-      printerModelSelect.value = state.printSettings.printerModel || 'auto';
+      printerModelSelect.value = 'd-series';
     }
   }
 
