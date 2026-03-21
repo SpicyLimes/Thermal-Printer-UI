@@ -6240,10 +6240,11 @@ function init() {
       } else if (settings.printerModel === 'wide') {
         settings.printerModel = 'wide-72';
       }
-      state.printSettings = { ...state.printSettings, ...settings };
+      // Don't restore copies — always reset to 1 each session
+      state.printSettings = { ...state.printSettings, ...settings, copies: 1 };
       densitySlider.value = state.printSettings.density;
       densityValue.textContent = state.printSettings.density;
-      copiesInput.value = state.printSettings.copies;
+      copiesInput.value = 1;
       feedSelect.value = state.printSettings.feed;
       printerModelSelect.value = state.printSettings.printerModel || 'auto';
     }
