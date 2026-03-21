@@ -1,7 +1,7 @@
 /**
  * D30 Label Designer Application
  * Multi-element label editor with drag, resize, and rotate
- * v116
+ * v144
  */
 
 import { CanvasRenderer } from './canvas.js?v=113';
@@ -134,8 +134,7 @@ let LABEL_SIZES = { ...D_SERIES_LABEL_SIZES, ...D_SERIES_ROUND_LABELS };
 
 // App state
 const state = {
-  labelSize: { width: 30, height: 14 },
-  tapeWidth: 12,  // Tape width in mm for tape printers (P12/A30), default 12mm
+  labelSize: { width: 40, height: 15 },
   elements: [],
   selectedIds: [],  // Array of selected element IDs (supports multi-select)
   transport: null,
@@ -626,7 +625,6 @@ function updateConnectionStatus(connected) {
   const printerInfoBtn = $('#printer-info-btn');
   const ditherPreviewBtn = $('#dither-preview-btn');
   const connectBtn = $('#connect-btn');
-  const connType = $('#conn-type');
   const mobileDot = $('#mobile-status-dot');
   const mobileConnectBtn = $('#mobile-connect-btn');
   const mobileDisconnectBtn = $('#mobile-disconnect-btn');
@@ -640,16 +638,9 @@ function updateConnectionStatus(connected) {
     mobileDot.classList.toggle('bg-gray-400', !connected);
   }
 
-  // Hide/show desktop connect button and connection type selector
+  // Hide/show desktop connect button
   if (connectBtn) {
     connectBtn.classList.toggle('hidden', connected);
-  }
-  if (connType) {
-    connType.classList.toggle('hidden', connected);
-    // On small screens conn-type is already hidden, so only toggle for larger screens
-    if (!connected) {
-      connType.classList.add('hidden', 'sm:block');
-    }
   }
 
   // Hide/show mobile connect button
@@ -750,257 +741,7 @@ function updatePrinterInfoFromQuery(field, value, allInfo) {
   }
 }
 
-/**
- * Update label size dropdown options based on connected printer type
- * @param {string} deviceName - BLE device name (optional)
- * @param {string} model - Printer model override (optional)
- */
-function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
-  const select = $('#label-size');
-  const currentValue = select.value;
-  const currentSize = state.labelSize;
 
-  // D-series only
-  const rectSizes = D_SERIES_LABEL_SIZES;
-  const roundSizes = D_SERIES_ROUND_LABELS;
-  const defaultKey = '30x14';
-
-  LABEL_SIZES = { ...rectSizes, ...roundSizes };
-
-  // Clear existing options (except custom)
-  while (select.options.length > 0) {
-    select.remove(0);
-  }
-
-  // Add rectangular label options
-  for (const [key, size] of Object.entries(rectSizes)) {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = `${size.width}x${size.height}mm`;
-    select.appendChild(option);
-  }
-
-  // Add separator and round label options if available
-  if (Object.keys(roundSizes).length > 0) {
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '── Round Labels ──';
-    select.appendChild(separator);
-
-    for (const [key, size] of Object.entries(roundSizes)) {
-      const option = document.createElement('option');
-      option.value = key;
-      option.textContent = key; // e.g., "20mm Round"
-      select.appendChild(option);
-    }
-  }
-
-  // Add custom option
-  const customOption = document.createElement('option');
-  customOption.value = 'custom';
-  customOption.textContent = 'Custom...';
-  select.appendChild(customOption);
-
-
-  // Try to restore current size or pick a sensible default
-  const currentKey = currentSize.round
-    ? `${currentSize.width}mm Round`
-    : `${currentSize.width}x${currentSize.height}`;
-  if (currentValue === 'multi-label') {
-    // Keep multi-label mode if already in it
-    select.value = 'multi-label';
-  } else if (LABEL_SIZES[currentKey]) {
-    select.value = currentKey;
-    $('#custom-size').classList.add('hidden');
-  } else if (currentValue === 'custom') {
-    select.value = 'custom';
-    $('#custom-size').classList.remove('hidden');
-  } else {
-    // Pick default based on printer type
-    select.value = defaultKey;
-    state.labelSize = { ...LABEL_SIZES[defaultKey] };
-    state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
-    state.renderer.clearCache();
-    updatePrintSize();
-    // Auto zoom-to-fit if label is too large at 100% zoom
-    zoomToFitIfNeeded();
-    render();
-    $('#custom-size').classList.add('hidden');
-  }
-
-  // Also update mobile dropdown
-  updateMobileLabelSizeDropdown(deviceName, model);
-}
-
-/**
- * Update mobile label size dropdown to match desktop
- * @param {string} deviceName - BLE device name (optional)
- * @param {string} model - Printer model override (optional)
- */
-function updateMobileLabelSizeDropdown(deviceName = '', model = 'auto') {
-  const mobileSelect = $('#mobile-label-size');
-  const desktopSelect = $('#label-size');
-  if (!mobileSelect) return;
-
-  // D-series only
-  const rectSizes = D_SERIES_LABEL_SIZES;
-  const roundSizes = D_SERIES_ROUND_LABELS;
-
-  // Clear and rebuild mobile dropdown
-  while (mobileSelect.options.length > 0) {
-    mobileSelect.remove(0);
-  }
-
-  // Add rectangular labels
-  for (const [key, size] of Object.entries(rectSizes)) {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = `${size.width}x${size.height}mm`;
-    mobileSelect.appendChild(option);
-  }
-
-  // Add round labels
-  if (Object.keys(roundSizes).length > 0) {
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '── Round ──';
-    mobileSelect.appendChild(separator);
-
-    for (const [key, size] of Object.entries(roundSizes)) {
-      const option = document.createElement('option');
-      option.value = key;
-      option.textContent = key;
-      mobileSelect.appendChild(option);
-    }
-  }
-
-  // Add custom option
-  const customOption = document.createElement('option');
-  customOption.value = 'custom';
-  customOption.textContent = 'Custom...';
-  mobileSelect.appendChild(customOption);
-
-  // Sync with desktop selection
-  mobileSelect.value = desktopSelect.value;
-}
-
-/**
- * Check if the currently connected printer is a continuous tape printer (P12/A30)
- * @returns {boolean} True if tape printer is connected
- */
-function isContinuousTapePrinter() {
-  const deviceName = state.transport?.getDeviceName?.() || '';
-  const printerModel = state.printSettings.printerModel;
-  return isTapePrinter(deviceName, printerModel);
-}
-
-/**
- * Show or hide the label length adjust buttons based on printer type
- * Only shown for tape printers (P12/A30)
- */
-function updateLengthAdjustButtons() {
-  const show = isContinuousTapePrinter();
-  $('#label-length-adjust')?.classList.toggle('hidden', !show);
-  $('#mobile-label-length-adjust')?.classList.toggle('hidden', !show);
-}
-
-/**
- * Show or hide the tape width selector based on printer type
- * @param {boolean} show - Whether to show the tape width selector
- */
-function updateTapeWidthVisibility(show) {
-  $('#tape-width-selector')?.classList.toggle('hidden', !show);
-  $('#mobile-tape-width-selector')?.classList.toggle('hidden', !show);
-}
-
-/**
- * Handle tape width change from dropdown
- * @param {number} width - New tape width in mm
- */
-function setTapeWidth(width) {
-  state.tapeWidth = width;
-
-  // Sync both dropdowns
-  const desktopSelect = $('#tape-width');
-  const mobileSelect = $('#mobile-tape-width');
-  if (desktopSelect) desktopSelect.value = width;
-  if (mobileSelect) mobileSelect.value = width;
-
-  // Save tape width preference for this device
-  saveTapeWidthForDevice();
-
-  // Refresh label size options to match new tape width
-  const deviceName = state.transport?.getDeviceName?.() || '';
-  const printerModel = state.printSettings.printerModel;
-  updateLabelSizeDropdown(deviceName, printerModel);
-}
-
-/**
- * Save tape width preference for the current device
- */
-function saveTapeWidthForDevice() {
-  const deviceName = state.transport?.getDeviceName?.();
-  if (!deviceName) return;
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.DEVICE_MAPPING) || '{}';
-    const mapping = JSON.parse(stored);
-
-    if (!mapping[deviceName]) {
-      mapping[deviceName] = {};
-    }
-    mapping[deviceName].tapeWidth = state.tapeWidth;
-
-    localStorage.setItem(STORAGE_KEYS.DEVICE_MAPPING, JSON.stringify(mapping));
-  } catch (e) {
-    console.warn('Failed to save tape width preference:', e);
-  }
-}
-
-/**
- * Load tape width preference for a device
- * @param {string} deviceName - Device name
- * @returns {number} Tape width in mm (default 12)
- */
-function loadTapeWidthForDevice(deviceName) {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.DEVICE_MAPPING) || '{}';
-    const mapping = JSON.parse(stored);
-    return mapping[deviceName]?.tapeWidth || 12;
-  } catch (e) {
-    return 12;
-  }
-}
-
-/**
- * Adjust the label length by a delta (for P12 continuous tape)
- * @param {number} delta - Amount to adjust in mm (positive or negative)
- */
-function adjustLabelLength(delta) {
-  const currentWidth = state.labelSize.width;
-  const newWidth = Math.max(10, Math.min(100, currentWidth + delta));
-
-  if (newWidth !== currentWidth) {
-    // Update to custom size
-    state.labelSize = { width: newWidth, height: 12 };
-    $('#label-size').value = 'custom';
-    $('#custom-size').classList.remove('hidden');
-    $('#custom-width').value = newWidth;
-    $('#custom-height').value = 12;
-
-    // Update canvas
-    state.renderer.setDimensions(newWidth, 12, state.zoom, false);
-    state.renderer.clearCache();
-    render();
-    updatePrintSize();
-
-    // Sync mobile
-    $('#mobile-label-size').value = 'custom';
-    $('#mobile-custom-size')?.classList.remove('hidden');
-    $('#mobile-custom-width').value = newWidth;
-    $('#mobile-custom-height').value = 12;
-  }
-}
 
 /**
  * Update print size display
@@ -2159,6 +1900,9 @@ function updateToolbarState() {
   if (ungroupBtn) {
     ungroupBtn.disabled = !canUngroup;
   }
+
+  // Keep elements sidebar in sync
+  updateElementsList();
 }
 
 /**
@@ -2301,84 +2045,6 @@ function updatePropertiesPanel() {
   updateMobileUI();
 }
 
-/**
- * Handle label size change
- */
-function handleLabelSizeChange() {
-  const select = $('#label-size');
-  const value = select.value;
-
-  if (value === 'multi-label') {
-    // Show multi-label configuration modal
-    $('#custom-size').classList.add('hidden');
-    showMultiLabelModal();
-    return;
-  } else if (value === 'custom') {
-    $('#custom-size').classList.remove('hidden');
-    // Reset round checkbox to unchecked when switching to custom
-    $('#custom-round').checked = false;
-    $('#custom-height').disabled = false;
-    $('#custom-size-x').classList.remove('hidden');
-    $('#custom-height').classList.remove('hidden');
-    const w = validateLabelWidth($('#custom-width').value);
-    const h = validateLabelHeight($('#custom-height').value);
-    state.labelSize = { width: w, height: h, round: false };
-  } else {
-    $('#custom-size').classList.add('hidden');
-    const preset = LABEL_SIZES[value];
-    if (preset) {
-      state.labelSize = { ...preset };
-    }
-  }
-
-  // Disable multi-label mode if switching to a single-label preset
-  if (state.multiLabel.enabled) {
-    exitMultiLabelMode();
-  }
-
-  state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
-  updatePrintSize();
-
-  // Auto zoom-to-fit if label is too large at 100% zoom
-  zoomToFitIfNeeded();
-
-  render();
-}
-
-/**
- * Handle custom size input
- */
-function handleCustomSizeChange() {
-  const w = validateLabelWidth($('#custom-width').value);
-  const isRound = $('#custom-round').checked;
-  const h = isRound ? w : validateLabelHeight($('#custom-height').value);
-
-  // Sync height input when round is checked
-  if (isRound) {
-    $('#custom-height').value = w;
-    $('#custom-height').disabled = true;
-    $('#custom-size-x').classList.add('hidden');
-    $('#custom-height').classList.add('hidden');
-  } else {
-    $('#custom-height').disabled = false;
-    $('#custom-size-x').classList.remove('hidden');
-    $('#custom-height').classList.remove('hidden');
-  }
-
-  state.labelSize = { width: w, height: h, round: isRound };
-  state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, isRound);
-  updatePrintSize();
-
-  // Auto zoom-to-fit if label is too large at 100% zoom
-  zoomToFitIfNeeded();
-
-  render();
-
-  // Sync to mobile custom inputs
-  if ($('#mobile-custom-width')) $('#mobile-custom-width').value = w;
-  if ($('#mobile-custom-height')) $('#mobile-custom-height').value = h;
-  if ($('#mobile-custom-round')) $('#mobile-custom-round').checked = isRound;
-}
 
 // =============================================================================
 // MULTI-LABEL FUNCTIONS
@@ -2409,11 +2075,6 @@ function showMultiLabelModal() {
  */
 function hideMultiLabelModal() {
   $('#multi-label-modal').classList.add('hidden');
-
-  // Reset label size dropdown if not applied
-  if (!state.multiLabel.enabled) {
-    $('#label-size').value = '40x30';
-  }
 }
 
 /**
@@ -2460,9 +2121,6 @@ function applyMultiLabelConfig() {
   updateZoneToolbar();
   $('#zone-toolbar').classList.remove('hidden');
 
-  // Update dropdown to show multi-label is active
-  $('#label-size').value = 'multi-label';
-
   hideMultiLabelModal();
   updatePrintSize();
   render();
@@ -2493,10 +2151,9 @@ function exitMultiLabelMode() {
   // Hide zone toolbar
   $('#zone-toolbar').classList.add('hidden');
 
-  // Reset to default label size
-  $('#label-size').value = '40x30';
-  state.labelSize = { width: 40, height: 30, round: false };
-  state.renderer.setDimensions(40, 30, state.zoom, false);
+  // Reset to fixed label size
+  state.labelSize = { width: 40, height: 15 };
+  state.renderer.setDimensions(40, 15, state.zoom, false);
 
   updatePrintSize();
   render();
@@ -4475,19 +4132,6 @@ function initPrinterModelPrompt() {
     const modelDesc = getPrinterDescription(deviceName, model);
     setStatus(`Connected: ${deviceName} (${modelDesc})`);
 
-    // Initialize tape width for tape printers
-    if (isTapePrinter(deviceName, model)) {
-      const savedTapeWidth = loadTapeWidthForDevice(deviceName);
-      const defaultWidth = isA30Printer(deviceName, model) ? 15 : 12;
-      state.tapeWidth = savedTapeWidth || defaultWidth;
-      $('#tape-width').value = state.tapeWidth;
-      $('#mobile-tape-width').value = state.tapeWidth;
-    }
-
-    // Update label sizes based on printer type
-    updateLabelSizeDropdown(deviceName, model);
-    updateLengthAdjustButtons();
-
     // Close dialog
     dialog.classList.add('hidden');
   });
@@ -4559,19 +4203,6 @@ async function handleConnect(event) {
       setStatus(`Connected: ${deviceName} - Please select printer model`);
       showPrinterModelPrompt(deviceName);
     }
-
-    // Initialize tape width for tape printers
-    if (isTapePrinter(deviceName, effectiveModel)) {
-      const savedTapeWidth = loadTapeWidthForDevice(deviceName);
-      const defaultWidth = isA30Printer(deviceName, effectiveModel) ? 15 : 12;
-      state.tapeWidth = savedTapeWidth || defaultWidth;
-      $('#tape-width').value = state.tapeWidth;
-      $('#mobile-tape-width').value = state.tapeWidth;
-    }
-
-    // Update label sizes based on printer type
-    updateLabelSizeDropdown(deviceName, effectiveModel);
-    updateLengthAdjustButtons();
 
     // Update printer info UI
     updatePrinterInfoUI(deviceName, effectiveModel);
@@ -4998,24 +4629,8 @@ function handleImportFile(file) {
       // Load the design
       state.elements = data.elements;
 
-      // Load label size if present
-      if (data.labelSize) {
-        state.labelSize = data.labelSize;
-        // Update the label size dropdown
-        const sizeKey = data.labelSize.round
-          ? `${data.labelSize.width}mm Round`
-          : `${data.labelSize.width}x${data.labelSize.height}`;
-        const select = $('#label-size');
-        if (LABEL_SIZES[sizeKey]) {
-          select.value = sizeKey;
-          $('#custom-size').classList.add('hidden');
-        } else {
-          select.value = 'custom';
-          $('#custom-size').classList.remove('hidden');
-          $('#custom-width').value = data.labelSize.width;
-          $('#custom-height').value = data.labelSize.height;
-        }
-      }
+      // Always use fixed label size (ignore saved labelSize from file)
+      state.labelSize = { width: 40, height: 15 };
 
       // Load template data if present
       if (data.templateData && Array.isArray(data.templateData)) {
@@ -5025,7 +4640,7 @@ function handleImportFile(file) {
 
       // Clear selection and update renderer
       state.selectedIds = [];
-      state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
+      state.renderer.setDimensions(40, 15, state.zoom, false);
       state.renderer.clearCache();
       resetHistory();
       updatePrintSize();
@@ -5086,7 +4701,6 @@ function updateElementsList() {
     btn.addEventListener('click', () => {
       const id = btn.dataset.elementId;
       selectElement(id);
-      $('#elements-dropdown').classList.add('hidden');
     });
   });
 }
@@ -5137,7 +4751,7 @@ function handleLoad(name) {
   }
 
   state.elements = design.elements || [];
-  state.labelSize = design.labelSize || { width: 40, height: 30 };
+  state.labelSize = { width: 40, height: 15 };
   state.selectedIds = [];
 
   // Restore template data if present
@@ -5148,11 +4762,6 @@ function handleLoad(name) {
   if (design.multiLabel && design.multiLabel.enabled) {
     state.multiLabel = { ...design.multiLabel };
     state.activeZone = 0;
-
-    // Update label size dropdown to show multi-label
-    const select = $('#label-size');
-    select.value = 'multi-label';
-    $('#custom-size').classList.add('hidden');
 
     // Apply multi-label dimensions
     state.renderer.setMultiLabelDimensions(
@@ -5177,22 +4786,7 @@ function handleLoad(name) {
     state.renderer.disableMultiLabel();
     $('#zone-toolbar').classList.add('hidden');
 
-    // Update label size dropdown
-    const sizeKey = state.labelSize.round
-      ? `${state.labelSize.width}mm Round`
-      : `${state.labelSize.width}x${state.labelSize.height}`;
-    const select = $('#label-size');
-    if (LABEL_SIZES[sizeKey]) {
-      select.value = sizeKey;
-      $('#custom-size').classList.add('hidden');
-    } else {
-      select.value = 'custom';
-      $('#custom-size').classList.remove('hidden');
-      $('#custom-width').value = state.labelSize.width;
-      $('#custom-height').value = state.labelSize.height;
-    }
-
-    state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
+    state.renderer.setDimensions(40, 15, state.zoom, false);
   }
 
   state.renderer.clearCache();
@@ -5704,65 +5298,6 @@ function initMobileUI() {
     handleBatchPrint();
   });
 
-  // Sync mobile label size selector with desktop
-  const mobileLabelSize = $('#mobile-label-size');
-  const desktopLabelSize = $('#label-size');
-  if (mobileLabelSize && desktopLabelSize) {
-    mobileLabelSize.value = desktopLabelSize.value;
-    mobileLabelSize.addEventListener('change', (e) => {
-      const value = e.target.value;
-      desktopLabelSize.value = value;
-
-      // Show/hide mobile custom size inputs
-      const mobileCustomSize = $('#mobile-custom-size');
-      if (value === 'custom') {
-        mobileCustomSize?.classList.remove('hidden');
-        // Sync values from desktop
-        $('#mobile-custom-width').value = $('#custom-width').value || '';
-        $('#mobile-custom-height').value = $('#custom-height').value || '';
-        $('#mobile-custom-round').checked = $('#custom-round').checked || false;
-        updateMobileCustomSizeVisibility();
-      } else {
-        mobileCustomSize?.classList.add('hidden');
-        handleLabelSizeChange({ target: desktopLabelSize });
-        if (value !== 'multi-label') {
-          closeMobileMenu();
-        }
-      }
-    });
-  }
-
-  // Mobile custom size input handlers
-  const mobileCustomWidth = $('#mobile-custom-width');
-  const mobileCustomHeight = $('#mobile-custom-height');
-  const mobileCustomRound = $('#mobile-custom-round');
-
-  function updateMobileCustomSizeVisibility() {
-    const isRound = $('#mobile-custom-round')?.checked;
-    const heightInput = $('#mobile-custom-height');
-    if (isRound) {
-      heightInput?.classList.add('hidden');
-      heightInput.previousElementSibling?.classList.add('hidden'); // hide 'x'
-    } else {
-      heightInput?.classList.remove('hidden');
-      heightInput.previousElementSibling?.classList.remove('hidden');
-    }
-  }
-
-  function syncMobileCustomToDesktop() {
-    const w = $('#mobile-custom-width')?.value;
-    const h = $('#mobile-custom-height')?.value;
-    const isRound = $('#mobile-custom-round')?.checked;
-
-    // Sync to desktop inputs
-    if ($('#custom-width')) $('#custom-width').value = w;
-    if ($('#custom-height')) $('#custom-height').value = isRound ? w : h;
-    if ($('#custom-round')) $('#custom-round').checked = isRound;
-
-    // Trigger the desktop handler
-    handleCustomSizeChange();
-  }
-
   // Helper to reset iOS zoom after input blur
   function resetMobileZoom() {
     // Force viewport reset by temporarily scrolling
@@ -5772,20 +5307,6 @@ function initMobileUI() {
       document.activeElement.blur();
     }
   }
-
-  mobileCustomWidth?.addEventListener('change', syncMobileCustomToDesktop);
-  mobileCustomHeight?.addEventListener('change', syncMobileCustomToDesktop);
-  mobileCustomWidth?.addEventListener('blur', resetMobileZoom);
-  mobileCustomHeight?.addEventListener('blur', resetMobileZoom);
-  mobileCustomRound?.addEventListener('change', () => {
-    updateMobileCustomSizeVisibility();
-    // If round is checked, sync width to height
-    if ($('#mobile-custom-round')?.checked) {
-      $('#mobile-custom-height').value = $('#mobile-custom-width').value;
-    }
-    syncMobileCustomToDesktop();
-  });
-
 
   // Mobile connect button
   $('#mobile-connect-btn')?.addEventListener('click', (e) => {
@@ -6565,44 +6086,7 @@ function updateMobileUI() {
   if (undoBtn) undoBtn.disabled = state.historyIndex < 0;
   if (redoBtn) redoBtn.disabled = state.historyIndex >= state.history.length - 1;
 
-  // Sync mobile label size selector with desktop
-  syncMobileLabelSize();
-
   // Note: Don't auto-rebuild mobile props panel here - it causes keyboard dismissal during typing
-}
-
-/**
- * Sync mobile label size selector and custom inputs with desktop state
- */
-function syncMobileLabelSize() {
-  const mobileLabelSize = $('#mobile-label-size');
-  const desktopLabelSize = $('#label-size');
-  const mobileCustomSize = $('#mobile-custom-size');
-
-  if (!mobileLabelSize || !desktopLabelSize) return;
-
-  // Sync selector value
-  mobileLabelSize.value = desktopLabelSize.value;
-
-  // Show/hide custom inputs
-  if (desktopLabelSize.value === 'custom') {
-    mobileCustomSize?.classList.remove('hidden');
-    // Sync custom values
-    const mobileW = $('#mobile-custom-width');
-    const mobileH = $('#mobile-custom-height');
-    const mobileRound = $('#mobile-custom-round');
-    if (mobileW) mobileW.value = $('#custom-width')?.value || '';
-    if (mobileH) mobileH.value = $('#custom-height')?.value || '';
-    if (mobileRound) mobileRound.checked = $('#custom-round')?.checked || false;
-    // Update visibility based on round
-    const isRound = mobileRound?.checked;
-    if (mobileH) {
-      mobileH.classList.toggle('hidden', isRound);
-      mobileH.previousElementSibling?.classList.toggle('hidden', isRound);
-    }
-  } else {
-    mobileCustomSize?.classList.add('hidden');
-  }
 }
 
 /**
@@ -6638,40 +6122,6 @@ function init() {
     }
   };
   updatePrintSize();
-
-  // Label size
-  $('#label-size').addEventListener('change', handleLabelSizeChange);
-  $('#custom-width').addEventListener('change', handleCustomSizeChange);
-  $('#custom-height').addEventListener('change', handleCustomSizeChange);
-  $('#custom-round').addEventListener('change', handleCustomSizeChange);
-
-  // P12/A30 label length adjust buttons
-  $('#length-plus')?.addEventListener('click', () => adjustLabelLength(5));
-  $('#length-minus')?.addEventListener('click', () => adjustLabelLength(-5));
-  $('#mobile-length-plus')?.addEventListener('click', () => adjustLabelLength(5));
-  $('#mobile-length-minus')?.addEventListener('click', () => adjustLabelLength(-5));
-
-  // Tape width selector (for P12/A30 tape printers)
-  $('#tape-width')?.addEventListener('change', (e) => {
-    setTapeWidth(parseInt(e.target.value, 10));
-  });
-  $('#mobile-tape-width')?.addEventListener('change', (e) => {
-    setTapeWidth(parseInt(e.target.value, 10));
-  });
-
-  // Connection type
-  const connType = $('#conn-type');
-  connType.addEventListener('change', (e) => {
-    state.connectionType = e.target.value;
-    const btn = $('#connect-btn');
-    btn.textContent = 'Connect';
-    btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
-    btn.classList.add('bg-white', 'hover:bg-gray-50');
-    updateConnectionStatus(false);
-    // Reset to M-series sizes when disconnecting/changing connection
-    updateLabelSizeDropdown('', 'auto');
-    updateLengthAdjustButtons();
-  });
 
   // Info dialog
   $('#info-btn').addEventListener('click', showInfoDialog);
@@ -6859,11 +6309,6 @@ function init() {
 
     // Save to localStorage
     safeStorageSet('d30_print_settings', safeJsonStringify(state.printSettings));
-
-    // Update UI based on printer model (for P12 length buttons and label sizes)
-    const deviceName = state.transport?.getDeviceName?.() || '';
-    updateLabelSizeDropdown(deviceName, state.printSettings.printerModel);
-    updateLengthAdjustButtons();
 
     printSettingsDialog.classList.add('hidden');
     setStatus('Print settings saved');
@@ -7055,7 +6500,6 @@ function init() {
   // Export dropdown toggle
   $('#export-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    $('#elements-dropdown').classList.add('hidden'); // Close other dropdown
     $('#export-dropdown').classList.toggle('hidden');
   });
 
@@ -7081,19 +6525,8 @@ function init() {
     $('#progress-subtitle').textContent = 'Cancelling...';
   });
 
-  // Elements dropdown
-  $('#elements-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    $('#export-dropdown').classList.add('hidden'); // Close other dropdown
-    updateElementsList();
-    $('#elements-dropdown').classList.toggle('hidden');
-  });
-
   // Close dropdowns when clicking outside
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#elements-btn') && !e.target.closest('#elements-dropdown')) {
-      $('#elements-dropdown').classList.add('hidden');
-    }
     if (!e.target.closest('#export-btn') && !e.target.closest('#export-dropdown')) {
       $('#export-dropdown').classList.add('hidden');
     }
