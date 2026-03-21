@@ -6998,11 +6998,12 @@ function init() {
     }
   });
 
-  // Center selection on label
+  // Center selection on label (labelSize is mm; element coords are px at 8px/mm)
+  const PX_PER_MM = 8;
   $('#center-h-btn').addEventListener('click', () => {
     if (state.selectedIds.length > 0) {
       saveHistory();
-      const labelW = state.labelSize.width;
+      const labelW = state.labelSize.width * PX_PER_MM;
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
@@ -7016,7 +7017,7 @@ function init() {
   $('#center-v-btn').addEventListener('click', () => {
     if (state.selectedIds.length > 0) {
       saveHistory();
-      const labelH = state.labelSize.height;
+      const labelH = state.labelSize.height * PX_PER_MM;
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
