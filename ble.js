@@ -148,8 +148,9 @@ export class BLETransport {
       console.log('If this device is not recognized, please report this name');
       console.log('═══════════════════════════════════════════════════');
 
-      // Wait for device to be ready
-      await this.waitForDeviceReady();
+      // Small delay after device selection before attempting GATT connect.
+      // watchAdvertisements stalls reliably on Linux Chromium, so skip it.
+      await this.delay(500);
 
       try {
         // Try to connect with retries
