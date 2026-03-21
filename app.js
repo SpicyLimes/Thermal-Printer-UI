@@ -5503,8 +5503,9 @@ function checkCompatibility() {
   }
 
   if (!('bluetooth' in navigator)) {
-    // Only warn if not a file:// context (bluetooth may appear missing on file:// in some builds)
-    if (!isLocalFile) {
+    // Only warn on non-secure, non-local contexts — HTTPS pages in Chromium may still
+    // expose bluetooth even if the API appears absent during early init
+    if (!isLocalFile && !isLocalhost && !window.isSecureContext) {
       warnings.push('Web Bluetooth not supported - printing requires Chrome, Chromium, or Edge with Web Bluetooth enabled');
       canPrint = false;
     }
