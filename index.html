@@ -30,33 +30,8 @@
       background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
     }
     .toolbar-btn {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      border-radius: 0.5rem;
-      border: 1px solid #e5e7eb;
-      background-color: #fff;
-      white-space: nowrap;
-      line-height: 1;
-      cursor: pointer;
+      @apply px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-200 bg-white flex items-center gap-1 sm:gap-1.5 whitespace-nowrap;
       transition: all 0.15s ease;
-    }
-    @media (min-width: 640px) {
-      .toolbar-btn {
-        gap: 6px;
-        padding: 6px 12px;
-        font-size: 0.875rem;
-      }
-    }
-    .toolbar-btn svg {
-      flex-shrink: 0;
-      display: block;
-      width: 16px;
-      height: 16px;
     }
     .toolbar-btn:hover {
       background-color: #f3f4f6;
@@ -67,8 +42,7 @@
       transform: scale(0.96);
     }
     .toolbar-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+      @apply opacity-50 cursor-not-allowed;
     }
     .toolbar-btn:disabled:hover {
       background-color: white;
@@ -306,6 +280,7 @@
     #save-design-dialog > div,
     #export-dropdown,
     #shape-dropdown,
+    #elements-dropdown,
     #shortcuts-modal > div,
     #multi-label-dialog > div {
       background-color: #1f2937 !important;
@@ -386,12 +361,12 @@
     }
     /* Dropdown menus */
     #export-dropdown button, #shape-dropdown button,
-    .element-list-item {
+    #elements-dropdown button, .element-list-item {
       background-color: #1f2937 !important;
       color: #e5e7eb !important;
     }
     #export-dropdown button:hover, #shape-dropdown button:hover,
-    .element-list-item:hover {
+    #elements-dropdown button:hover, .element-list-item:hover {
       background-color: #374151 !important;
     }
     /* Dialog headers */
@@ -460,11 +435,11 @@
               <option value="12x12">12x12mm</option>
             </optgroup>
             <optgroup label="D30 (14mm tape)">
-              <option value="30x14">30x14mm</option>
+              <option value="30x14" selected>30x14mm</option>
               <option value="22x14">22x14mm</option>
             </optgroup>
             <optgroup label="D30 (15mm tape)">
-              <option value="40x15" selected>40x15mm</option>
+              <option value="40x15">40x15mm</option>
               <option value="30x15">30x15mm</option>
             </optgroup>
             <optgroup label="Round">
@@ -503,6 +478,9 @@
       <div class="flex items-center gap-1.5 sm:gap-3">
         <!-- Connection -->
         <div class="flex items-center gap-1 sm:gap-2 text-sm">
+          <select id="conn-type" class="hidden sm:block px-2 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none text-xs sm:text-sm">
+            <option value="ble">Bluetooth</option>
+          </select>
           <button id="connect-btn" class="px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-xs sm:text-sm font-medium transition-colors">
             Connect
           </button>
@@ -673,6 +651,21 @@
         </div>
       </div>
 
+      <div class="toolbar-divider hidden sm:block"></div>
+
+      <!-- Elements list -->
+      <div class="relative flex items-center">
+        <button id="elements-btn" class="toolbar-btn toolbar-btn-menu" title="Elements List">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          <span class="hidden sm:inline">Elements</span>
+        </button>
+        <div id="elements-dropdown" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[60] py-1 min-w-[180px] max-h-[300px] overflow-y-auto">
+          <div id="elements-list" class="text-sm">
+            <div class="px-3 py-2 text-gray-400 text-center">No elements</div>
+          </div>
+        </div>
+      </div>
+
       <div class="toolbar-divider hidden" id="template-toolbar-divider"></div>
 
       <!-- Template Manage Data (shows when template fields detected) -->
@@ -727,16 +720,6 @@
 
   <!-- Main Content -->
   <main class="flex-1 flex overflow-hidden relative">
-    <!-- Elements Panel (left, desktop only) -->
-    <aside id="elements-panel" class="desktop-only w-44 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col overflow-hidden">
-      <div class="px-3 py-2 border-b border-gray-200 flex items-center gap-2">
-        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Elements</span>
-      </div>
-      <div id="elements-list" class="flex-1 overflow-y-auto text-sm">
-        <div class="px-3 py-2 text-gray-400 text-center text-xs">No elements</div>
-      </div>
-    </aside>
     <!-- Canvas Area -->
     <div class="flex-1 flex items-center justify-center p-3 sm:p-6 overflow-auto relative">
       <div id="canvas-container" class="rounded-lg shadow-inner transition-transform origin-center" style="touch-action: none;">
@@ -1865,6 +1848,9 @@
             <button id="mobile-disconnect-btn" class="hidden flex-1 px-3 py-2 border border-red-200 bg-red-50 text-red-700 rounded-lg text-sm active:bg-red-100">
               Disconnect
             </button>
+            <select id="mobile-conn-type" class="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+              <option value="ble">BT</option>
+            </select>
           </div>
         </div>
 

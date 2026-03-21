@@ -134,7 +134,7 @@ let LABEL_SIZES = { ...D_SERIES_LABEL_SIZES, ...D_SERIES_ROUND_LABELS };
 
 // App state
 const state = {
-  labelSize: { width: 40, height: 15 },
+  labelSize: { width: 30, height: 14 },
   tapeWidth: 12,  // Tape width in mm for tape printers (P12/A30), default 12mm
   elements: [],
   selectedIds: [],  // Array of selected element IDs (supports multi-select)
@@ -160,7 +160,7 @@ const state = {
     density: 6,       // 1-8 (darkness)
     copies: 1,        // Number of copies
     feed: 32,         // Feed after print in dots (8 dots = 1mm)
-    printerModel: 'd-series',
+    printerModel: 'auto',  // 'auto', 'narrow-48', 'mini-54', 'wide-72', 'mid-76', 'wide-81', 'd-series'
   },
   // Template state
   templateFields: [],     // Detected field names from elements
@@ -626,6 +626,7 @@ function updateConnectionStatus(connected) {
   const printerInfoBtn = $('#printer-info-btn');
   const ditherPreviewBtn = $('#dither-preview-btn');
   const connectBtn = $('#connect-btn');
+  const connType = $('#conn-type');
   const mobileDot = $('#mobile-status-dot');
   const mobileConnectBtn = $('#mobile-connect-btn');
   const mobileDisconnectBtn = $('#mobile-disconnect-btn');
@@ -643,6 +644,14 @@ function updateConnectionStatus(connected) {
   if (connectBtn) {
     connectBtn.classList.toggle('hidden', connected);
   }
+  if (connType) {
+    connType.classList.toggle('hidden', connected);
+    // On small screens conn-type is already hidden, so only toggle for larger screens
+    if (!connected) {
+      connType.classList.add('hidden', 'sm:block');
+    }
+  }
+
   // Hide/show mobile connect button
   if (mobileConnectBtn) {
     mobileConnectBtn.classList.toggle('hidden', connected);
@@ -754,7 +763,7 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
   // D-series only
   const rectSizes = D_SERIES_LABEL_SIZES;
   const roundSizes = D_SERIES_ROUND_LABELS;
-  const defaultKey = '40x15';
+  const defaultKey = '30x14';
 
   LABEL_SIZES = { ...rectSizes, ...roundSizes };
 
@@ -4528,13 +4537,28 @@ async function handleConnect(event) {
     const savedModel = getSavedDeviceModel(deviceName);
     const printerModel = state.printSettings.printerModel;
 
-    // Always use d-series — this app is D30 only
-    const effectiveModel = 'd-series';
-    state.printSettings.printerModel = 'd-series';
-    $('#printer-model').value = 'd-series';
+    // Determine effective model: auto-detect for recognized devices, else saved mapping > print settings
+    let effectiveModel = printerModel;
+    if (recognized) {
+      // Device is recognized - use auto-detection (ignore saved model which may be outdated)
+      effectiveModel = 'auto';
+      state.printSettings.printerModel = 'auto';
+      $('#printer-model').value = 'auto';  // Update dropdown to match
+    } else if (savedModel && printerModel === 'auto') {
+      // Unrecognized device with saved mapping - use saved model
+      state.printSettings.printerModel = savedModel;
+      effectiveModel = savedModel;
+    }
 
+    // Show detected/configured model in status
     const modelDesc = getPrinterDescription(deviceName, effectiveModel);
-    setStatus(`Connected: ${deviceName} (${modelDesc})`);
+    if (recognized || savedModel || printerModel !== 'auto') {
+      setStatus(`Connected: ${deviceName} (${modelDesc})`);
+    } else {
+      // Device not recognized and no saved preference - prompt user
+      setStatus(`Connected: ${deviceName} - Please select printer model`);
+      showPrinterModelPrompt(deviceName);
+    }
 
     // Initialize tape width for tape printers
     if (isTapePrinter(deviceName, effectiveModel)) {
@@ -5062,6 +5086,7 @@ function updateElementsList() {
     btn.addEventListener('click', () => {
       const id = btn.dataset.elementId;
       selectElement(id);
+      $('#elements-dropdown').classList.add('hidden');
     });
   });
 }
@@ -6634,6 +6659,20 @@ function init() {
     setTapeWidth(parseInt(e.target.value, 10));
   });
 
+  // Connection type
+  const connType = $('#conn-type');
+  connType.addEventListener('change', (e) => {
+    state.connectionType = e.target.value;
+    const btn = $('#connect-btn');
+    btn.textContent = 'Connect';
+    btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
+    btn.classList.add('bg-white', 'hover:bg-gray-50');
+    updateConnectionStatus(false);
+    // Reset to M-series sizes when disconnecting/changing connection
+    updateLabelSizeDropdown('', 'auto');
+    updateLengthAdjustButtons();
+  });
+
   // Info dialog
   $('#info-btn').addEventListener('click', showInfoDialog);
   $('#info-close').addEventListener('click', hideInfoDialog);
@@ -6752,12 +6791,11 @@ function init() {
         settings.printerModel = 'wide-72';
       }
       state.printSettings = { ...state.printSettings, ...settings };
-      state.printSettings.printerModel = 'd-series'; // always d-series
       densitySlider.value = state.printSettings.density;
       densityValue.textContent = state.printSettings.density;
       copiesInput.value = state.printSettings.copies;
       feedSelect.value = state.printSettings.feed;
-      printerModelSelect.value = 'd-series';
+      printerModelSelect.value = state.printSettings.printerModel || 'auto';
     }
   }
 
@@ -6960,12 +6998,11 @@ function init() {
     }
   });
 
-  // Center selection on label (labelSize is in mm; canvas coords are px at 8px/mm)
-  const PX_PER_MM = 8;
+  // Center selection on label
   $('#center-h-btn').addEventListener('click', () => {
     if (state.selectedIds.length > 0) {
       saveHistory();
-      const labelW = state.labelSize.width * PX_PER_MM;
+      const labelW = state.labelSize.width;
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
@@ -6979,7 +7016,7 @@ function init() {
   $('#center-v-btn').addEventListener('click', () => {
     if (state.selectedIds.length > 0) {
       saveHistory();
-      const labelH = state.labelSize.height * PX_PER_MM;
+      const labelH = state.labelSize.height;
       state.selectedIds.forEach(id => {
         const el = state.elements.find(e => e.id === id);
         if (el) {
@@ -7017,6 +7054,7 @@ function init() {
   // Export dropdown toggle
   $('#export-btn').addEventListener('click', (e) => {
     e.stopPropagation();
+    $('#elements-dropdown').classList.add('hidden'); // Close other dropdown
     $('#export-dropdown').classList.toggle('hidden');
   });
 
@@ -7042,8 +7080,19 @@ function init() {
     $('#progress-subtitle').textContent = 'Cancelling...';
   });
 
-  // Close export dropdown when clicking outside
+  // Elements dropdown
+  $('#elements-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    $('#export-dropdown').classList.add('hidden'); // Close other dropdown
+    updateElementsList();
+    $('#elements-dropdown').classList.toggle('hidden');
+  });
+
+  // Close dropdowns when clicking outside
   document.addEventListener('click', (e) => {
+    if (!e.target.closest('#elements-btn') && !e.target.closest('#elements-dropdown')) {
+      $('#elements-dropdown').classList.add('hidden');
+    }
     if (!e.target.closest('#export-btn') && !e.target.closest('#export-dropdown')) {
       $('#export-dropdown').classList.add('hidden');
     }
