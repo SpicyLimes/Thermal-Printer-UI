@@ -739,31 +739,6 @@ async function printDSeries(transport, data, widthBytes, heightLines, onProgress
   let rotated = rotateRaster90CW(data, widthBytes, heightLines);
   console.log(`Rotated: ${rotated.widthBytes} bytes wide x ${rotated.heightLines} rows`);
 
-  // D30 print head is 12 bytes (96px) wide. Clamp rotated width to prevent
-  // overflow on wider tape sizes (14mm/15mm) which causes double label eject.
-  // Center the crop so content is not clipped from either edge.
-  const D30_MAX_WIDTH_BYTES = 12;
-  if (rotated.widthBytes > D30_MAX_WIDTH_BYTES) {
-    const excessPx = (rotated.widthBytes - D30_MAX_WIDTH_BYTES) * 8;
-    const skipPx = Math.floor(excessPx / 2); // center the printable window
-    console.log(`Clamping width from ${rotated.widthBytes} to ${D30_MAX_WIDTH_BYTES} bytes (centered, skipping ${skipPx}px)`);
-    const clamped = new Uint8Array(D30_MAX_WIDTH_BYTES * rotated.heightLines);
-    for (let row = 0; row < rotated.heightLines; row++) {
-      // Extract 96px centered from the rotated row
-      for (let dstByte = 0; dstByte < D30_MAX_WIDTH_BYTES; dstByte++) {
-        for (let bit = 0; bit < 8; bit++) {
-          const srcPx = skipPx + dstByte * 8 + bit;
-          const srcByte = Math.floor(srcPx / 8);
-          const srcBit = 7 - (srcPx % 8);
-          const pixel = (rotated.data[row * rotated.widthBytes + srcByte] >> srcBit) & 1;
-          if (pixel) {
-            clamped[row * D30_MAX_WIDTH_BYTES + dstByte] |= (1 << (7 - bit));
-          }
-        }
-      }
-    }
-    rotated = { data: clamped, widthBytes: D30_MAX_WIDTH_BYTES, heightLines: rotated.heightLines };
-  }
 
   // Set heat/density before header
   const heatTime = densityToHeatTime(density);
@@ -790,8 +765,10 @@ async function printDSeries(transport, data, widthBytes, heightLines, onProgress
     }
   }
 
-  // D-series end command
-  await transport.delay(100);
+  // D-series end command — wait proportionally to data size before sending
+  const endDelay = Math.max(200, Math.ceil(rotated.data.length / 48));
+  console.log(`Waiting ${endDelay}ms before end command...`);
+  await transport.delay(endDelay);
   console.log('Sending D-series end command...');
   await transport.send(D_CMD.END);
 
