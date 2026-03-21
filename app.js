@@ -1,12 +1,12 @@
 /**
  * D30 Label Designer Application
  * Multi-element label editor with drag, resize, and rotate
- * v144
+ * v145
  */
 
 import { CanvasRenderer } from './canvas.js?v=113';
 import { BLETransport } from './ble.js?v=103';
-import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern } from './printer.js?v=124';
+import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern } from './printer.js?v=110';
 import {
   createTextElement,
   createImageElement,
@@ -1886,9 +1886,6 @@ function updateToolbarState() {
   $('#delete-btn').disabled = !hasSelection;
   $('#bring-front').disabled = !hasSelection;
   $('#send-back').disabled = !hasSelection;
-  $('#center-h-btn').disabled = !hasSelection;
-  $('#center-v-btn').disabled = !hasSelection;
-
   // Group button: enabled when 2+ ungrouped elements selected
   const groupBtn = $('#group-btn');
   if (groupBtn) {
@@ -1901,8 +1898,6 @@ function updateToolbarState() {
     ungroupBtn.disabled = !canUngroup;
   }
 
-  // Keep elements sidebar in sync
-  updateElementsList();
 }
 
 /**
@@ -4666,80 +4661,8 @@ function handleImportFile(file) {
 }
 
 /**
- * Update elements list dropdown
- */
-function updateElementsList() {
-  const container = $('#elements-list');
-
-  if (state.elements.length === 0) {
-    container.innerHTML = '<div class="px-3 py-2 text-gray-400 text-center">No elements</div>';
-    return;
-  }
-
-  // Build list HTML - elements in z-order (bottom to top)
-  const html = state.elements.map((el, index) => {
-    const isSelected = state.selectedIds.includes(el.id);
-    const icon = getElementIcon(el.type);
-    const label = getElementLabel(el);
-    const layerNum = index + 1;
-
-    return `
-      <button class="element-list-item w-full px-3 py-1.5 text-left hover:bg-gray-100 flex items-center gap-2 ${isSelected ? 'bg-blue-50 text-blue-700' : ''}"
-              data-element-id="${el.id}">
-        <span class="text-gray-400 text-xs w-4">${layerNum}</span>
-        ${icon}
-        <span class="flex-1 truncate">${escapeHtml(label)}</span>
-        ${el.groupId ? '<span class="text-xs text-gray-400">G</span>' : ''}
-      </button>
-    `;
-  }).reverse().join(''); // Reverse to show top layer first
-
-  container.innerHTML = html;
-
-  // Add click handlers
-  container.querySelectorAll('.element-list-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.elementId;
-      selectElement(id);
-    });
-  });
-}
-
-/**
- * Get icon SVG for element type
- */
-function getElementIcon(type) {
-  const icons = {
-    text: '<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/></svg>',
-    image: '<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
-    barcode: '<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h2m10 0h2"/></svg>',
-    qr: '<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h2m10 0h2"/></svg>',
-    shape: '<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z"/></svg>',
-  };
-  return icons[type] || icons.shape;
-}
-
-/**
  * Get label for element
  */
-function getElementLabel(el) {
-  switch (el.type) {
-    case 'text':
-      return el.text ? (el.text.substring(0, 20) + (el.text.length > 20 ? '...' : '')) : 'Text';
-    case 'image':
-      return 'Image';
-    case 'barcode':
-      return el.barcodeData ? `Barcode: ${el.barcodeData.substring(0, 10)}` : 'Barcode';
-    case 'qr':
-      return el.qrData ? `QR: ${el.qrData.substring(0, 15)}` : 'QR Code';
-    case 'shape':
-      const shapeNames = { rectangle: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle', line: 'Line' };
-      return shapeNames[el.shapeType] || 'Shape';
-    default:
-      return 'Element';
-  }
-}
-
 /**
  * Load a design
  */
@@ -6439,36 +6362,6 @@ function init() {
       // Send all selected elements to back (in reverse order)
       [...state.selectedIds].reverse().forEach(id => {
         state.elements = sendToBack(state.elements, id);
-      });
-      render();
-    }
-  });
-
-  // Center selection on label (labelSize is mm; element coords are px at 8px/mm)
-  const PX_PER_MM = 8;
-  $('#center-h-btn').addEventListener('click', () => {
-    if (state.selectedIds.length > 0) {
-      saveHistory();
-      const labelW = state.labelSize.width * PX_PER_MM;
-      state.selectedIds.forEach(id => {
-        const el = state.elements.find(e => e.id === id);
-        if (el) {
-          state.elements = updateElement(state.elements, id, { x: Math.max(0, (labelW - el.width) / 2) });
-        }
-      });
-      render();
-    }
-  });
-
-  $('#center-v-btn').addEventListener('click', () => {
-    if (state.selectedIds.length > 0) {
-      saveHistory();
-      const labelH = state.labelSize.height * PX_PER_MM;
-      state.selectedIds.forEach(id => {
-        const el = state.elements.find(e => e.id === id);
-        if (el) {
-          state.elements = updateElement(state.elements, id, { y: Math.max(0, (labelH - el.height) / 2) });
-        }
       });
       render();
     }

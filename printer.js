@@ -2,7 +2,7 @@
  * Printer protocol for Phomemo printers
  * Handles print commands for both USB and BLE transports
  * Supports M-series (M02, M110, M200, M220, M260) and D-series (D30, D110)
- * v109
+ * v110
  */
 
 /**
@@ -581,6 +581,41 @@ export function getPrinterDescription(deviceName, modelOverride = 'auto') {
 }
 
 /**
+ * Crop raster data to a maximum width (centered), for printers with a fixed head width.
+ * If the data is already within maxWidthPx, returns it unchanged.
+ *
+ * @param {Uint8Array} data - Raster data (packed bits, MSB first)
+ * @param {number} widthBytes - Current row width in bytes
+ * @param {number} heightLines - Number of rows
+ * @param {number} maxWidthPx - Maximum printable width in pixels
+ * @returns {Object} { data, widthBytes, heightLines }
+ */
+function cropRasterToWidth(data, widthBytes, heightLines, maxWidthPx) {
+  const srcWidthPx = widthBytes * 8;
+  if (srcWidthPx <= maxWidthPx) return { data, widthBytes, heightLines };
+
+  const offsetPx = Math.floor((srcWidthPx - maxWidthPx) / 2);
+  const dstWidthBytes = Math.ceil(maxWidthPx / 8);
+  const cropped = new Uint8Array(dstWidthBytes * heightLines);
+
+  for (let row = 0; row < heightLines; row++) {
+    for (let dstX = 0; dstX < maxWidthPx; dstX++) {
+      const srcX = dstX + offsetPx;
+      const srcByteIdx = row * widthBytes + Math.floor(srcX / 8);
+      const srcBitIdx = 7 - (srcX % 8);
+      const pixel = (data[srcByteIdx] >> srcBitIdx) & 1;
+      if (pixel) {
+        const dstByteIdx = row * dstWidthBytes + Math.floor(dstX / 8);
+        const dstBitIdx = 7 - (dstX % 8);
+        cropped[dstByteIdx] |= (1 << dstBitIdx);
+      }
+    }
+  }
+
+  return { data: cropped, widthBytes: dstWidthBytes, heightLines };
+}
+
+/**
  * Rotate raster data 90 degrees clockwise for D-series printers
  * D-series prints labels top-to-bottom, so we need to rotate the image
  *
@@ -738,6 +773,13 @@ async function printDSeries(transport, data, widthBytes, heightLines, onProgress
   // Rotate for D-series (they print labels sideways)
   let rotated = rotateRaster90CW(data, widthBytes, heightLines);
   console.log(`Rotated: ${rotated.widthBytes} bytes wide x ${rotated.heightLines} rows`);
+
+  // D30 print head is 96 dots (12mm) wide. Crop centered if label is taller than 12mm.
+  const D30_HEAD_DOTS = 96;
+  if (rotated.widthBytes * 8 > D30_HEAD_DOTS) {
+    rotated = cropRasterToWidth(rotated.data, rotated.widthBytes, rotated.heightLines, D30_HEAD_DOTS);
+    console.log(`Cropped to head width: ${rotated.widthBytes} bytes wide x ${rotated.heightLines} rows`);
+  }
 
 
   // Set heat/density before header
