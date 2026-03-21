@@ -6650,20 +6650,6 @@ function init() {
     setTapeWidth(parseInt(e.target.value, 10));
   });
 
-  // Connection type
-  const connType = $('#conn-type');
-  connType.addEventListener('change', (e) => {
-    state.connectionType = e.target.value;
-    const btn = $('#connect-btn');
-    btn.textContent = 'Connect';
-    btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
-    btn.classList.add('bg-white', 'hover:bg-gray-50');
-    updateConnectionStatus(false);
-    // Reset to M-series sizes when disconnecting/changing connection
-    updateLabelSizeDropdown('', 'auto');
-    updateLengthAdjustButtons();
-  });
-
   // Info dialog
   $('#info-btn').addEventListener('click', showInfoDialog);
   $('#info-close').addEventListener('click', hideInfoDialog);
