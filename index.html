@@ -30,17 +30,33 @@
       background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
     }
     .toolbar-btn {
-      @apply px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-200 bg-white flex items-center gap-1 sm:gap-1.5 whitespace-nowrap;
-      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border-radius: 0.5rem;
+      border: 1px solid #e5e7eb;
+      background-color: #fff;
+      white-space: nowrap;
       line-height: 1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    @media (min-width: 640px) {
+      .toolbar-btn {
+        gap: 6px;
+        padding: 6px 12px;
+        font-size: 0.875rem;
+      }
     }
     .toolbar-btn svg {
       flex-shrink: 0;
-      vertical-align: middle;
-    }
-    .toolbar-btn span {
-      line-height: 1;
-      vertical-align: middle;
+      display: block;
+      width: 16px;
+      height: 16px;
     }
     .toolbar-btn:hover {
       background-color: #f3f4f6;
@@ -51,7 +67,8 @@
       transform: scale(0.96);
     }
     .toolbar-btn:disabled {
-      @apply opacity-50 cursor-not-allowed;
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     .toolbar-btn:disabled:hover {
       background-color: white;
@@ -289,7 +306,6 @@
     #save-design-dialog > div,
     #export-dropdown,
     #shape-dropdown,
-    #elements-dropdown,
     #shortcuts-modal > div,
     #multi-label-dialog > div {
       background-color: #1f2937 !important;
@@ -370,12 +386,12 @@
     }
     /* Dropdown menus */
     #export-dropdown button, #shape-dropdown button,
-    #elements-dropdown button, .element-list-item {
+    .element-list-item {
       background-color: #1f2937 !important;
       color: #e5e7eb !important;
     }
     #export-dropdown button:hover, #shape-dropdown button:hover,
-    #elements-dropdown button:hover, .element-list-item:hover {
+    .element-list-item:hover {
       background-color: #374151 !important;
     }
     /* Dialog headers */
@@ -657,21 +673,6 @@
         </div>
       </div>
 
-      <div class="toolbar-divider hidden sm:block"></div>
-
-      <!-- Elements list -->
-      <div class="relative flex items-center">
-        <button id="elements-btn" class="toolbar-btn toolbar-btn-menu" title="Elements List">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-          <span class="hidden sm:inline">Elements</span>
-        </button>
-        <div id="elements-dropdown" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[60] py-1 min-w-[180px] max-h-[300px] overflow-y-auto">
-          <div id="elements-list" class="text-sm">
-            <div class="px-3 py-2 text-gray-400 text-center">No elements</div>
-          </div>
-        </div>
-      </div>
-
       <div class="toolbar-divider hidden" id="template-toolbar-divider"></div>
 
       <!-- Template Manage Data (shows when template fields detected) -->
@@ -726,6 +727,16 @@
 
   <!-- Main Content -->
   <main class="flex-1 flex overflow-hidden relative">
+    <!-- Elements Panel (left, desktop only) -->
+    <aside id="elements-panel" class="desktop-only w-44 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col overflow-hidden">
+      <div class="px-3 py-2 border-b border-gray-200 flex items-center gap-2">
+        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Elements</span>
+      </div>
+      <div id="elements-list" class="flex-1 overflow-y-auto text-sm">
+        <div class="px-3 py-2 text-gray-400 text-center text-xs">No elements</div>
+      </div>
+    </aside>
     <!-- Canvas Area -->
     <div class="flex-1 flex items-center justify-center p-3 sm:p-6 overflow-auto relative">
       <div id="canvas-container" class="rounded-lg shadow-inner transition-transform origin-center" style="touch-action: none;">

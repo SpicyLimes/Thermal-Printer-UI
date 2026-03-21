@@ -5077,7 +5077,6 @@ function updateElementsList() {
     btn.addEventListener('click', () => {
       const id = btn.dataset.elementId;
       selectElement(id);
-      $('#elements-dropdown').classList.add('hidden');
     });
   });
 }
@@ -7032,7 +7031,6 @@ function init() {
   // Export dropdown toggle
   $('#export-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    $('#elements-dropdown').classList.add('hidden'); // Close other dropdown
     $('#export-dropdown').classList.toggle('hidden');
   });
 
@@ -7058,19 +7056,8 @@ function init() {
     $('#progress-subtitle').textContent = 'Cancelling...';
   });
 
-  // Elements dropdown
-  $('#elements-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    $('#export-dropdown').classList.add('hidden'); // Close other dropdown
-    updateElementsList();
-    $('#elements-dropdown').classList.toggle('hidden');
-  });
-
-  // Close dropdowns when clicking outside
+  // Close export dropdown when clicking outside
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#elements-btn') && !e.target.closest('#elements-dropdown')) {
-      $('#elements-dropdown').classList.add('hidden');
-    }
     if (!e.target.closest('#export-btn') && !e.target.closest('#export-dropdown')) {
       $('#export-dropdown').classList.add('hidden');
     }
