@@ -736,8 +736,23 @@ async function printDSeries(transport, data, widthBytes, heightLines, onProgress
   console.log(`Input: ${widthBytes} bytes wide x ${heightLines} rows (${data.length} bytes)`);
 
   // Rotate for D-series (they print labels sideways)
-  const rotated = rotateRaster90CW(data, widthBytes, heightLines);
+  let rotated = rotateRaster90CW(data, widthBytes, heightLines);
   console.log(`Rotated: ${rotated.widthBytes} bytes wide x ${rotated.heightLines} rows`);
+
+  // D30 print head is 12 bytes (96px) wide. Clamp rotated width to prevent
+  // overflow on wider tape sizes (14mm/15mm) which causes double label eject.
+  const D30_MAX_WIDTH_BYTES = 12;
+  if (rotated.widthBytes > D30_MAX_WIDTH_BYTES) {
+    console.log(`Clamping width from ${rotated.widthBytes} to ${D30_MAX_WIDTH_BYTES} bytes`);
+    const clamped = new Uint8Array(D30_MAX_WIDTH_BYTES * rotated.heightLines);
+    for (let row = 0; row < rotated.heightLines; row++) {
+      clamped.set(
+        rotated.data.slice(row * rotated.widthBytes, row * rotated.widthBytes + D30_MAX_WIDTH_BYTES),
+        row * D30_MAX_WIDTH_BYTES
+      );
+    }
+    rotated = { data: clamped, widthBytes: D30_MAX_WIDTH_BYTES, heightLines: rotated.heightLines };
+  }
 
   // Set heat/density before header
   const heatTime = densityToHeatTime(density);
