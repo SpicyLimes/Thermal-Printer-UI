@@ -1,3 +1,5 @@
+![Home Page](assets/screenshot.png)
+
 # D30 Label Designer
 
 A browser-based label designer for the **Phomemo D30** thermal label printer, built for Linux. Connects to the printer via Bluetooth (Web Bluetooth API) — no drivers or native app required.
